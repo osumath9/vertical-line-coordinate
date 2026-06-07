@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>수직선 위의 점의 좌표 - 인터랙티브 학습</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- KaTeX CDN (수식 렌더링) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+  <style>
+    /* 미려한 폰트 및 트랜지션 효과 */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .snap-indicator {
+      transition: all 0.1s ease-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center justify-center p-4">
+
+  <!-- 메인 학습기 카드 컨테이너 -->
+  <div class="w-full max-w-3xl bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden flex flex-col">
+    
+    <!-- 상단 헤더 영역 -->
+    <div class="px-6 pt-6 pb-2 flex justify-between items-center border-b border-slate-100">
+      <div>
+        <span class="text-xs font-semibold bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full">중1 | 좌표평면과 그래프</span>
+        <h1 class="text-2xl font-black text-slate-800 mt-1">수직선 위의 점의 좌표</h1>
+      </div>
+      <!-- 타이머 및 누적 정답 카운터 -->
+      <div class="flex items-center space-x-3">
+        <div class="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2 flex items-center space-x-2 shadow-sm">
+          <span class="text-xs font-bold text-slate-500">시간</span>
+          <span id="timer-display" class="text-xl font-black text-slate-700">00:00</span>
+        </div>
+        <div class="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2 flex items-center space-x-2 shadow-sm">
+          <span class="text-xs font-bold text-slate-500">누적 정답 횟수</span>
+          <span id="streak-counter" class="text-xl font-black text-blue-600">0 / 5</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 모드 선택 탭 영역 -->
+    <div class="grid grid-cols-2 gap-2 p-4 bg-slate-50/50">
+      <button id="tab-read" onclick="setMode('read')" class="py-3 px-4 rounded-xl font-bold flex items-center justify-center space-x-2 shadow-sm transition-all border border-slate-200 bg-white text-slate-800 hover:bg-slate-50">
+        <span>📍 점의 좌표 읽기</span>
+      </button>
+      <button id="tab-draw" onclick="setMode('draw')" class="py-3 px-4 rounded-xl font-bold flex items-center justify-center space-x-2 shadow-sm transition-all border border-slate-200 bg-white text-slate-800 hover:bg-slate-50">
+        <span>🎯 좌표에 점 찍기 (드래그)</span>
+      </button>
+    </div>
+
+    <!-- 오늘의 미션 카드 (보라색 그라데이션) -->
+    <div class="mx-6 my-4 p-5 bg-gradient-to-r from-indigo-950 via-indigo-900 to-indigo-800 text-white rounded-2xl shadow-md relative overflow-hidden">
+      <div class="relative z-10">
+        <span class="text-xs font-bold text-indigo-300 tracking-wider">오늘의 미션</span>
+        <h2 id="mission-text" class="text-lg md:text-xl font-bold mt-1 text-slate-100">
+          <!-- 미션 내용 동적 주입 -->
+        </h2>
+      </div>
+      <!-- 우측 데코레이션 'i' 심볼 -->
+      <div class="absolute right-0 top-0 bottom-0 w-24 bg-white/5 flex items-center justify-center text-7xl font-black text-white/10 select-none">
+        i
+      </div>
+    </div>
+
+    <!-- 수직선 및 캔버스 영역 (수학적 도메인 표현) -->
+    <div class="mx-6 mb-4 p-6 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col items-center justify-center relative min-h-[220px]">
+      <div id="canvas-container" class="w-full h-40 relative select-none touch-none">
+        <!-- SVG로 수직선 구현 (반응형 최적화) -->
+        <svg id="number-line-svg" class="w-full h-full overflow-visible"></svg>
+      </div>
+    </div>
+
+    <!-- 하단 인터랙션 & 판정 영역 -->
+    <div class="p-6 border-t border-slate-100 bg-slate-50/50 flex flex-col items-center space-y-4">
+      
+      <!-- 정답 확인 및 입력 컨테이너 -->
+      <div class="flex items-center space-x-3 w-full max-w-md justify-center">
+        <span class="text-slate-700 font-bold text-lg shrink-0">점의 좌표는 무엇일까요?</span>
+        
+        <!-- 읽기 모드 입력창 -->
+        <input type="text" id="answer-input" placeholder="정수 입력" class="w-24 text-center py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-600 font-black text-xl text-slate-800 placeholder:text-slate-300 placeholder:font-normal">
+        
+        <!-- 드래그 모드 안내 텍스트 (입력 대신 표시) -->
+        <div id="drag-guide-text" class="hidden px-4 py-2.5 bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 rounded-xl text-center">
+          점을 드래그하고 정답을 누르세요!
+        </div>
+
+        <button onclick="checkAnswer()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-indigo-600/20 active:scale-95 transition-all shrink-0">
+          정답 확인
+        </button>
+      </div>
+
+      <!-- 피드백 알림창 -->
+      <div id="feedback-box" class="hidden w-full max-w-md p-4 rounded-xl text-center font-bold text-lg animate-fade-in">
+        <!-- 메시지 동적 주입 -->
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 5회 성공 축하 모달 -->
+  <div id="success-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border border-slate-100 transform scale-95 transition-all">
+      <div class="text-6xl mb-4">🏆</div>
+      <h3 class="text-2xl font-black text-indigo-950">축하합니다!</h3>
+      <p class="text-slate-600 font-medium mt-2">총 5회의 수직선 미션을 완벽히 성공했습니다!</p>
+      
+      <div class="bg-indigo-50 border border-indigo-100 rounded-2xl py-3 px-4 my-5 flex flex-col items-center justify-center space-y-2">
+        <div class="flex items-center justify-center space-x-2">
+          <span class="text-sm font-bold text-indigo-600">성공 기록:</span>
+          <span class="text-lg font-black text-indigo-800">5회 정답 달성</span>
+        </div>
+        <div class="flex items-center justify-center space-x-2">
+          <span class="text-sm font-bold text-indigo-600">총 소요 시간:</span>
+          <span id="final-time-record" class="text-lg font-black text-indigo-800">00:00</span>
+        </div>
+      </div>
+
+      <button onclick="closeModalAndReset()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-600/20 active:scale-95 transition-all">
+        다시 도전하기
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // --- 설정 및 상수 영역 ---
+    const MIN_VAL = -5; // 수직선 최소값
+    const MAX_VAL = 5;  // 수직선 최대값
+    const GOAL_STREAK = 5; // 목표 성공 횟수
+
+    // --- 앱 상태 전역 변수 ---
+    let currentMode = 'read'; // 'read' (읽기 모드), 'draw' (점 찍기 모드)
+    let correctCount = 0;     // 누적 정답 횟수 (틀려도 초기화되지 않음)
+    let targetCoordinate = 0; // 정답 좌표 값 (정수)
+    let currentPointA = 0;    // 현재 점 A의 좌표 (정수, 실시간 갱신용)
+    let isDragging = false;   // 드래그 여부
+
+    // 오디오 컨텍스트 (효과음용)
+    let audioCtx = null;
+
+    // 타이머 관련 변수
+    let timerInterval = null;
+    let elapsedSeconds = 0;
+
+    // SVG 구성 요소 좌표 맵핑용
+    let svgWidth = 0;
+    const margin = 50; // 좌우 여백
+
+    // --- 초기화 시점 설정 ---
+    window.onload = function() {
+      // 윈도우 크기 변화 시 수직선 다시 그리기
+      window.addEventListener('resize', drawNumberLine);
+      setMode('read'); // 초기 모드는 읽기 모드로 시작
+    }
+
+    // --- 타이머 제어 로직 ---
+    function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        elapsedSeconds++;
+        updateTimerDisplay();
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = null;
+    }
+
+    function resetTimer() {
+      stopTimer();
+      elapsedSeconds = 0;
+      updateTimerDisplay();
+    }
+
+    function updateTimerDisplay() {
+      const mins = Math.floor(elapsedSeconds / 60).toString().padStart(2, '0');
+      const secs = (elapsedSeconds % 60).toString().padStart(2, '0');
+      const display = document.getElementById('timer-display');
+      if (display) display.textContent = `${mins}:${secs}`;
+    }
+
+    // --- 수식 자동 렌더링 헬퍼 ---
+    function triggerMathRender() {
+      if (typeof renderMathInElement === 'function') {
+        renderMathInElement(document.body, {
+          delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+          ],
+          throwOnError: false
+        });
+      }
+    }
+
+    // --- 모드 세팅 및 연속 정답 초기화 ---
+    function setMode(mode) {
+      if (currentMode !== mode) {
+        correctCount = 0; // 모드 변경 시 누적정답 횟수 초기화!
+        updateStreakDisplay();
+        resetTimer(); // 모드 변경 시 타이머 초기화
+      }
+      
+      currentMode = mode;
+      
+      // 탭 디자인 활성화 상태 업데이트
+      const tabRead = document.getElementById('tab-read');
+      const tabDraw = document.getElementById('tab-draw');
+      
+      if (currentMode === 'read') {
+        tabRead.className = "py-3 px-4 rounded-xl font-bold flex items-center justify-center space-x-2 shadow-sm transition-all border-2 border-indigo-600 bg-indigo-50 text-indigo-700";
+        tabDraw.className = "py-3 px-4 rounded-xl font-bold flex items-center justify-center space-x-2 shadow-sm transition-all border border-slate-200 bg-white text-slate-800 hover:bg-slate-50";
+        
+        document.getElementById('answer-input').classList.remove('hidden');
+        document.getElementById('drag-guide-text').classList.add('hidden');
+      } else {
+        tabDraw.className = "py-3 px-4 rounded-xl font-bold flex items-center justify-center space-x-2 shadow-sm transition-all border-2 border-indigo-600 bg-indigo-50 text-indigo-700";
+        tabRead.className = "py-3 px-4 rounded-xl font-bold flex items-center justify-center space-x-2 shadow-sm transition-all border border-slate-200 bg-white text-slate-800 hover:bg-slate-50";
+        
+        document.getElementById('answer-input').classList.add('hidden');
+        document.getElementById('drag-guide-text').classList.remove('hidden');
+      }
+
+      hideFeedback();
+      generateNewProblem();
+      if (!timerInterval) startTimer(); // 타이머 시작
+    }
+
+    // --- 새로운 문제 생성 ---
+    function generateNewProblem() {
+      // 입력값 초기화
+      document.getElementById('answer-input').value = '';
+      hideFeedback();
+
+      // 난수 기반의 새로운 정답 생성 (-5 ~ 5 범위, 0 제외)
+      let newCoord = 0;
+      do {
+        newCoord = Math.floor(Math.random() * (MAX_VAL - MIN_VAL + 1)) + MIN_VAL;
+      } while (newCoord === 0);
+
+      targetCoordinate = newCoord;
+
+      if (currentMode === 'read') {
+        // 읽기 모드: 점 A가 정답 위치에 가 있음
+        currentPointA = targetCoordinate;
+        document.getElementById('mission-text').innerHTML = "수직선 위에 있는 점 $A$의 좌표를 읽어 보세요.";
+      } else {
+        // 찍기 모드: 점 A가 항상 원점 0에서 시작하도록 고정 설정
+        currentPointA = 0;
+        const targetString = targetCoordinate > 0 ? `+${targetCoordinate}` : `${targetCoordinate}`;
+        document.getElementById('mission-text').innerHTML = `수직선 위에 좌표가 $${targetString}$인 점 $A$를 찍어 보세요.`;
+      }
+
+      drawNumberLine();
+      triggerMathRender();
+    }
+
+    // --- 연속 정답 상태 동기화 ---
+    function updateStreakDisplay() {
+      document.getElementById('streak-counter').textContent = `${correctCount} / ${GOAL_STREAK}`;
+    }
+
+    // --- 수직선 렌더링 엔진 (SVG) ---
+    function drawNumberLine() {
+      const container = document.getElementById('canvas-container');
+      const svg = document.getElementById('number-line-svg');
+      
+      svgWidth = container.clientWidth;
+      const height = container.clientHeight;
+      const centerY = height / 2;
+      
+      svg.innerHTML = '';
+
+      // 수직선 뼈대 그리기
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", margin);
+      line.setAttribute("y1", centerY);
+      line.setAttribute("x2", svgWidth - margin);
+      line.setAttribute("y2", centerY);
+      line.setAttribute("stroke", "#4A5568");
+      line.setAttribute("stroke-width", "3");
+      svg.appendChild(line);
+
+      // 왼쪽 화살표
+      const leftArrow = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      leftArrow.setAttribute("points", `${margin},${centerY} ${margin + 15},${centerY - 8} ${margin + 15},${centerY + 8}`);
+      leftArrow.setAttribute("fill", "#4A5568");
+      svg.appendChild(leftArrow);
+
+      // 오른쪽 화살표
+      const rightArrow = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      rightArrow.setAttribute("points", `${svgWidth - margin},${centerY} ${svgWidth - margin - 15},${centerY - 8} ${svgWidth - margin - 15},${centerY + 8}`);
+      rightArrow.setAttribute("fill", "#4A5568");
+      svg.appendChild(rightArrow);
+
+      const usableWidth = svgWidth - 2 * margin;
+      const stepCount = MAX_VAL - MIN_VAL;
+      const stepWidth = usableWidth / stepCount;
+
+      for (let i = MIN_VAL; i <= MAX_VAL; i++) {
+        const x = margin + (i - MIN_VAL) * stepWidth;
+        
+        const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        tick.setAttribute("x1", x);
+        tick.setAttribute("x2", x);
+        
+        if (i === 0) {
+          tick.setAttribute("y1", centerY - 15);
+          tick.setAttribute("y2", centerY + 15);
+          tick.setAttribute("stroke", "#1E3A8A");
+          tick.setAttribute("stroke-width", "3");
+        } else {
+          tick.setAttribute("y1", centerY - 8);
+          tick.setAttribute("y2", centerY + 8);
+          tick.setAttribute("stroke", "#94A3B8");
+          tick.setAttribute("stroke-width", "2");
+        }
+        svg.appendChild(tick);
+
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", x);
+        text.setAttribute("y", centerY + 30);
+        text.setAttribute("text-anchor", "middle");
+        text.setAttribute("font-size", "15px");
+        text.setAttribute("font-weight", "bold");
+        
+        if (i === 0) {
+          text.textContent = "0";
+          text.setAttribute("fill", "#1E3A8A");
+        } else if (i > 0) {
+          text.textContent = `+${i}`;
+          text.setAttribute("fill", "#64748B");
+        } else {
+          text.textContent = `${i}`;
+          text.setAttribute("fill", "#64748B");
+        }
+        svg.appendChild(text);
+
+        if (i === 0) {
+          const labelO = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          labelO.setAttribute("x", x);
+          labelO.setAttribute("y", centerY - 22);
+          labelO.setAttribute("text-anchor", "middle");
+          labelO.setAttribute("font-size", "16px");
+          labelO.setAttribute("font-weight", "bold");
+          labelO.setAttribute("font-style", "italic");
+          labelO.setAttribute("fill", "#1E3A8A");
+          labelO.textContent = "O";
+          svg.appendChild(labelO);
+        }
+      }
+
+      // 점 A 표시 및 배치 처리
+      const aX = margin + (currentPointA - MIN_VAL) * stepWidth;
+      
+      const aGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      aGroup.setAttribute("id", "point-a-group");
+      aGroup.setAttribute("class", "cursor-pointer");
+      
+      const touchArea = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      touchArea.setAttribute("cx", aX);
+      touchArea.setAttribute("cy", centerY);
+      touchArea.setAttribute("r", "35");
+      touchArea.setAttribute("fill", "transparent");
+      aGroup.appendChild(touchArea);
+
+      const glow = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      glow.setAttribute("cx", aX);
+      glow.setAttribute("cy", centerY);
+      glow.setAttribute("r", "16");
+      glow.setAttribute("fill", "#FFEDD5");
+      glow.setAttribute("stroke", "#FDBA74");
+      glow.setAttribute("stroke-width", "2");
+      aGroup.appendChild(glow);
+
+      const core = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      core.setAttribute("cx", aX);
+      core.setAttribute("cy", centerY);
+      core.setAttribute("r", "8");
+      core.setAttribute("fill", "#EA580C");
+      aGroup.appendChild(core);
+
+      const labelA = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      labelA.setAttribute("x", aX);
+      labelA.setAttribute("y", centerY - 22);
+      labelA.setAttribute("text-anchor", "middle");
+      labelA.setAttribute("font-size", "18px");
+      labelA.setAttribute("font-weight", "black");
+      labelA.setAttribute("font-style", "italic");
+      labelA.setAttribute("fill", "#EA580C");
+      labelA.textContent = "A";
+      aGroup.appendChild(labelA);
+
+      svg.appendChild(aGroup);
+
+      if (currentMode === 'draw') {
+        setupDragEvents(aGroup, glow, core, labelA, centerY, stepWidth);
+      }
+    }
+
+    // --- 드래그 제어 로직 ---
+    function setupDragEvents(element, glow, core, labelA, centerY, stepWidth) {
+      const svg = document.getElementById('number-line-svg');
+
+      function startDrag(e) {
+        isDragging = true;
+        glow.setAttribute("r", "22");
+        glow.setAttribute("fill", "#FED7AA");
+        e.preventDefault();
+      }
+
+      function doDrag(e) {
+        if (!isDragging) return;
+        
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const rect = svg.getBoundingClientRect();
+        const xRelative = clientX - rect.left;
+        
+        const usableWidth = svgWidth - 2 * margin;
+        let coordValue = ((xRelative - margin) / usableWidth) * (MAX_VAL - MIN_VAL) + MIN_VAL;
+        
+        coordValue = Math.max(MIN_VAL, Math.min(MAX_VAL, coordValue));
+        const snappedVal = Math.round(coordValue);
+        
+        if (snappedVal !== currentPointA) {
+          currentPointA = snappedVal;
+          drawNumberLine();
+        }
+      }
+
+      function stopDrag() {
+        if (isDragging) {
+          isDragging = false;
+          glow.setAttribute("r", "16");
+          glow.setAttribute("fill", "#FFEDD5");
+        }
+      }
+
+      element.addEventListener('mousedown', startDrag);
+      window.addEventListener('mousemove', doDrag);
+      window.addEventListener('mouseup', stopDrag);
+
+      element.addEventListener('touchstart', startDrag, { passive: false });
+      window.addEventListener('touchmove', doDrag, { passive: false });
+      window.addEventListener('touchend', stopDrag);
+    }
+
+    // --- 정답 확인 및 판정 알고리즘 ---
+    function checkAnswer() {
+      let isCorrect = false;
+      let userAnswerRaw = "";
+
+      if (currentMode === 'read') {
+        const inputField = document.getElementById('answer-input');
+        userAnswerRaw = inputField.value.trim();
+        let parsedAnswer = parseInt(userAnswerRaw.replace('+', ''));
+        
+        if (!isNaN(parsedAnswer) && parsedAnswer === targetCoordinate) {
+          isCorrect = true;
+        }
+      } else {
+        if (currentPointA === targetCoordinate) {
+          isCorrect = true;
+        }
+      }
+
+      if (isCorrect) {
+        playSuccessSound(); // 🎉 정답일 때 '띠로링' 효과음 재생
+        
+        correctCount++;
+        updateStreakDisplay();
+        
+        if (correctCount >= GOAL_STREAK) {
+          stopTimer(); // 미션 성공 시 타이머 정지
+          showModal();
+        } else {
+          showFeedback(true, `정답입니다! 🎉 다음 문제에 도전해볼까요? (${correctCount}/${GOAL_STREAK} 회 정답 달성)`);
+          setTimeout(generateNewProblem, 1600);
+        }
+      } else {
+        // 오답일 때 correctCount 초기화를 주석 처리하여 누적 횟수를 보전합니다.
+        // 타이머 역시 리셋하지 않고 계속 누적 측정합니다.
+        
+        let customHint = "";
+        if (currentMode === 'read') {
+          if (targetCoordinate < 0) {
+            customHint = "원점 0에서부터 **왼쪽(음의 방향)**으로 몇 칸 떨어져 있는지 다시 신중히 관찰해볼까요?";
+          } else {
+            customHint = "원점 0에서부터 **오른쪽(양의 방향)**으로 몇 칸 떨어져 있는지 다시 세어보아요.";
+          }
+        } else {
+          customHint = "점 A가 원하는 위치에 도달하지 못했어요. 원점으로부터 방향과 수치를 다시 매칭해 움직여보세요.";
+        }
+        
+        showFeedback(false, `아쉽습니다. 😢 ${customHint}`);
+      }
+    }
+
+    // --- 피드백 메시지 시각화 ---
+    function showFeedback(isSuccess, text) {
+      const feedbackBox = document.getElementById('feedback-box');
+      feedbackBox.classList.remove('hidden');
+      
+      if (isSuccess) {
+        feedbackBox.className = "w-full max-w-md p-4 rounded-2xl text-center font-bold text-lg border bg-emerald-50 border-emerald-200 text-emerald-800";
+      } else {
+        feedbackBox.className = "w-full max-w-md p-4 rounded-2xl text-center font-bold text-lg border bg-rose-50 border-rose-200 text-rose-800";
+      }
+      feedbackBox.innerHTML = text;
+    }
+
+    function hideFeedback() {
+      document.getElementById('feedback-box').classList.add('hidden');
+    }
+
+    // --- 효과음 재생 로직 (Web Audio API 활용) ---
+    function playSuccessSound() {
+      try {
+        // 브라우저 오디오 컨텍스트 초기화 (사용자 상호작용 후 활성화됨)
+        if (!audioCtx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new AudioContext();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+
+        const now = audioCtx.currentTime;
+        
+        // 첫 번째 음 (띠 - 미/E5)
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(659.25, now);
+        gain1.gain.setValueAtTime(0.15, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.1);
+
+        // 두 번째 음 (링 - 도/C6, 살짝 길고 경쾌하게)
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1046.50, now + 0.1);
+        gain2.gain.setValueAtTime(0.2, now + 0.1);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.start(now + 0.1);
+        osc2.stop(now + 0.6);
+      } catch (error) {
+        console.error("오디오 재생을 지원하지 않는 환경입니다.", error);
+      }
+    }
+
+    // --- 모달 제어 ---
+    function showModal() {
+      const mins = Math.floor(elapsedSeconds / 60).toString().padStart(2, '0');
+      const secs = (elapsedSeconds % 60).toString().padStart(2, '0');
+      document.getElementById('final-time-record').textContent = `${mins}:${secs}`;
+      
+      const modal = document.getElementById('success-modal');
+      modal.classList.remove('hidden');
+    }
+
+    function closeModalAndReset() {
+      const modal = document.getElementById('success-modal');
+      modal.classList.add('hidden');
+      correctCount = 0;
+      updateStreakDisplay();
+      resetTimer(); // 모달 닫고 다시 시작 시 타이머 초기화
+      startTimer();
+      generateNewProblem();
+    }
+  </script>
+</body>
+</html>
